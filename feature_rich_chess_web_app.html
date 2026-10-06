@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grandmaster Chess Hub - Ultimate Edition</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chess.js for move validation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <!-- Custom Theme / Styling -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .chess-board { display: grid; grid-template-columns: repeat(8, 1fr); grid-template-rows: repeat(8, 1fr); }
+        .square { display: flex; align-items: center; justify-content: center; font-size: 2.5rem; cursor: pointer; user-select: none; position: relative; transition: background-color 0.15s ease; }
+        .piece { transition: transform 0.1s ease; z-index: 10; }
+        .piece:hover { transform: scale(1.05); }
+        .highlight-selected { background-color: rgba(255, 255, 0, 0.4) !important; }
+        .highlight-move::after { content: ''; width: 20px; height: 20px; border-radius: 50%; background-color: rgba(0, 0, 0, 0.2); position: absolute; }
+        .highlight-capture::after { content: ''; width: 100%; height: 100%; border: 4px solid rgba(255, 0, 0, 0.4); position: absolute; }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 h-full flex flex-col overflow-hidden">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-800 border-b border-slate-700 px-6 py-3 flex justify-between items-center z-20 shadow-md">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2 text-amber-500 font-bold text-xl">
+                <i class="fa-solid fa-chess-knight text-2xl"></i>
+                <span>GrandChess Hub</span>
+            </div>
+            <nav class="hidden md:flex space-x-1">
+                <button onclick="switchTab('play')" id="nav-play" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition hover:bg-slate-600"><i class="fa-solid fa-play mr-2"></i>Play</button>
+                <button onclick="switchTab('puzzles')" id="nav-puzzles" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-puzzle-piece mr-2"></i>Puzzles</button>
+                <button onclick="switchTab('coaches')" id="nav-coaches" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-graduation-cap mr-2"></i>GM Coaches</button>
+                <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-palette mr-2"></i>Themes</button>
+            </nav>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+            <!-- Active Profile / Account Badge -->
+            <div id="profile-badge" onclick="openProfileSelector()" class="flex items-center space-x-3 bg-slate-700/60 hover:bg-slate-700 px-3 py-1.5 rounded-full cursor-pointer transition border border-slate-600">
+                <div id="badge-avatar" class="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center font-bold text-sm">P</div>
+                <div class="text-left hidden sm:block">
+                    <div id="badge-profilename" class="text-xs font-semibold leading-tight">Select Profile</div>
+                    <div id="badge-email" class="text-[10px] text-slate-400 leading-tight">No Account</div>
+                </div>
+                <i class="fa-solid fa-chevron-down text-xs text-slate-400 ml-1"></i>
+            </div>
+            <button onclick="logoutAccount()" title="Switch Account / Logout" class="text-slate-400 hover:text-red-400 p-2 transition"><i class="fa-solid fa-right-from-bracket"></i></button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto relative flex flex-col">
+
+        <!-- VIEW: AUTH / GMAIL LOGIN SIMULATOR -->
+        <div id="view-auth" class="absolute inset-0 bg-slate-950 flex items-center justify-center z-50 p-4">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 max-w-md w-full shadow-2xl text-center">
+                <div class="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-2xl mx-auto flex items-center justify-center text-3xl mb-6 shadow-inner">
+                    <i class="fa-solid fa-chess"></i>
+                </div>
+                <h1 class="text-2xl font-bold mb-2">Welcome to GrandChess</h1>
+                <p class="text-slate-400 text-sm mb-8">Sign in with a Gmail simulated account to manage multiple player profiles, bots, coach lessons, and puzzles.</p>
+                
+                <div id="auth-step-login" class="space-y-4">
+                    <button onclick="simulateGmailLogin()" class="w-full bg-white hover:bg-slate-100 text-slate-900 font-semibold py-3 px-4 rounded-xl flex items-center justify-center space-x-3 transition shadow">
+                        <i class="fa-brands fa-google text-red-500 text-lg"></i>
+                        <span>Continue with Google (Gmail)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: NETFLIX-STYLE PROFILE SELECTOR -->
+        <div id="view-profiles" class="absolute inset-0 bg-slate-950 flex items-center justify-center z-40 p-4 hidden">
+            <div class="max-w-2xl w-full text-center">
+                <h1 class="text-4xl font-bold mb-3 tracking-tight">Who's playing?</h1>
+                <p class="text-slate-400 mb-8 text-sm">Select a profile linked to <span id="current-gmail-display" class="text-amber-400 font-medium">user@gmail.com</span></p>
+                
+                <div id="profiles-grid" class="flex flex-wrap justify-center gap-6 mb-10">
+                    <!-- Dynamic Profile Cards injected here -->
+                </div>
+
+                <div class="flex justify-center space-x-4">
+                    <button onclick="openAddProfileModal()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-6 py-2.5 rounded-xl text-sm font-semibold transition flex items-center space-x-2">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>Add Profile</span>
+                    </button>
+                    <button onclick="logoutAccount()" class="bg-transparent hover:bg-slate-900 text-slate-400 hover:text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition border border-transparent hover:border-slate-800">
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: PLAY (Bots, 2-Player, Custom Match setup) -->
+        <div id="view-play" class="flex-1 flex flex-col md:flex-row h-full overflow-hidden">
+            <!-- Left Side / Board Area -->
+            <div class="flex-1 flex flex-col items-center justify-center p-4 relative bg-slate-900/50">
+                
+                <!-- Game Status / Turn Header -->
+                <div id="game-status-bar" class="w-full max-w-[520px] flex justify-between items-center mb-3 px-2">
+                    <div class="flex items-center space-x-3">
+                        <div id="opponent-avatar" class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-lg font-bold border border-slate-600">🤖</div>
+                        <div>
+                            <div id="opponent-name" class="font-semibold text-sm">Stockfish Bot (Level 5)</div>
+                            <div id="opponent-rating" class="text-xs text-slate-400">Rating: 1500</div>
+                        </div>
+                    </div>
+                    <div id="game-eval" class="bg-slate-800 px-3 py-1 rounded-lg text-xs font-mono font-bold text-amber-400 border border-slate-700">Equal (+0.0)</div>
+                </div>
+
+                <!-- Chessboard Container -->
+                <div class="relative shadow-2xl rounded-lg overflow-hidden border-4 border-slate-700 bg-slate-800">
+                    <div id="chessboard" class="chess-board w-[340px] h-[340px] sm:w-[480px] sm:h-[480px]"></div>
+                </div>
+
+                <!-- Player Status Footer -->
+                <div class="w-full max-w-[520px] flex justify-between items-center mt-3 px-2">
+                    <div class="flex items-center space-x-3">
+                        <div id="player-avatar" class="w-10 h-10 rounded-full bg-amber-600 flex items-center justify-center text-lg font-bold border border-amber-500">You</div>
+                        <div>
+                            <div id="player-name" class="font-semibold text-sm">Player Profile</div>
+                            <div id="player-rating" class="text-xs text-slate-400">Rating: 1200</div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="undoMove()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 transition"><i class="fa-solid fa-rotate-left mr-1"></i>Undo</button>
+                        <button onclick="resignGame()" class="bg-red-900/40 hover:bg-red-900/60 text-red-300 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-800/50 transition"><i class="fa-solid fa-flag mr-1"></i>Resign</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Side / Game Controls & Match Setup -->
+            <div class="w-full md:w-96 bg-slate-800 border-l border-slate-700 flex flex-col h-full shadow-xl">
+                <!-- Tabs within Play: [Match Select] / [Moves Log] -->
+                <div class="flex border-b border-slate-700 p-2 bg-slate-850">
+                    <button onclick="switchPlayTab('setup')" id="playtab-setup" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-slate-700 text-white transition">New Game</button>
+                    <button onclick="switchPlayTab('moves')" id="playtab-moves" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition">Moves & Notation</button>
+                </div>
+
+                <!-- Setup Pane -->
+                <div id="pane-setup" class="flex-1 p-4 overflow-y-auto space-y-5">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Game Mode</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="setGameMode('bot')" id="mode-bot" class="p-3 rounded-xl border border-amber-500 bg-amber-500/10 text-amber-400 font-semibold text-sm flex flex-col items-center justify-center transition">
+                                <i class="fa-solid fa-robot text-xl mb-1"></i>
+                                <span>Play vs Bot</span>
+                            </button>
+                            <button onclick="setGameMode('local')" id="mode-local" class="p-3 rounded-xl border border-slate-700 bg-slate-900/50 text-slate-300 font-semibold text-sm flex flex-col items-center justify-center transition hover:border-slate-600">
+                                <i class="fa-solid fa-user-group text-xl mb-1"></i>
+                                <span>Pass & Play</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Bot Selection Section -->
+                    <div id="bot-selection-container">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Choose Computer Bot</label>
+                        <div id="bots-list" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                            <!-- Bot cards injected via JS -->
+                        </div>
+                    </div>
+
+                    <!-- Color Picker -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Play As</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="setPlayerColor('white')" id="color-white" class="py-2 rounded-lg bg-slate-700 text-white font-medium text-xs border border-amber-500 transition">White</button>
+                            <button onclick="setPlayerColor('random')" id="color-random" class="py-2 rounded-lg bg-slate-900 text-slate-400 font-medium text-xs border border-slate-700 transition">Random</button>
+                            <button onclick="setPlayerColor('black')" id="color-black" class="py-2 rounded-lg bg-slate-900 text-slate-400 font-medium text-xs border border-slate-700 transition">Black</button>
+                        </div>
+                    </div>
+
+                    <button onclick="startNewGame()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-xl shadow-lg transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-play"></i>
+                        <span>Start Game</span>
+                    </button>
+                </div>
+
+                <!-- Moves Pane -->
+                <div id="pane-moves" class="flex-1 p-4 overflow-y-auto hidden flex-col">
+                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Move History</div>
+                    <div id="moves-list" class="flex-1 font-mono text-xs space-y-1 bg-slate-900/50 p-3 rounded-xl border border-slate-700 overflow-y-auto">
+                        <!-- Moves appended here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: PUZZLES -->
+        <div id="view-puzzles" class="flex-1 flex flex-col md:flex-row h-full overflow-hidden hidden">
+            <div class="flex-1 flex flex-col items-center justify-center p-4 bg-slate-900/50">
+                <div class="w-full max-w-[520px] flex justify-between items-center mb-3 px-2">
+                    <div>
+                        <h2 id="puzzle-title" class="font-bold text-lg text-amber-400">Tactical Puzzle #1</h2>
+                        <p id="puzzle-desc" class="text-xs text-slate-400">Find the best move to win material.</p>
+                    </div>
+                    <div id="puzzle-status" class="bg-slate-800 px-3 py-1 rounded-lg text-xs font-semibold text-slate-300 border border-slate-700">Your Turn (White)</div>
+                </div>
+
+                <div class="relative shadow-2xl rounded-lg overflow-hidden border-4 border-slate-700 bg-slate-800">
+                    <div id="puzzle-board" class="chess-board w-[340px] h-[340px] sm:w-[480px] sm:h-[480px]"></div>
+                </div>
+
+                <div class="w-full max-w-[520px] flex justify-between items-center mt-3 px-2">
+                    <button onclick="nextPuzzle()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold border border-slate-700 transition">Next Puzzle</button>
+                    <div class="text-xs text-slate-400 font-medium">Solved: <span id="puzzles-solved-count" class="text-white font-bold">0</span></div>
+                </div>
+            </div>
+
+            <div class="w-full md:w-80 bg-slate-800 border-l border-slate-700 p-5 flex flex-col justify-between">
+                <div>
+                    <h3 class="font-bold text-sm mb-3 flex items-center text-amber-400"><i class="fa-solid fa-lightbulb mr-2"></i>Puzzle Trainer</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-4">Solve chess puzzles daily to improve tactical vision. Calculate variations before moving!</p>
+                    <div class="bg-slate-900 p-4 rounded-xl border border-slate-700 space-y-3">
+                        <div class="flex justify-between text-xs"><span class="text-slate-400">Rating:</span><span class="font-bold text-amber-400">1450</span></div>
+                        <div class="flex justify-between text-xs"><span class="text-slate-400">Streak:</span><span class="font-bold text-emerald-400">3 Correct</span></div>
+                    </div>
+                </div>
+                <button onclick="hintPuzzle()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold py-2.5 rounded-xl transition border border-slate-600">Get Hint</button>
+            </div>
+        </div>
+
+        <!-- VIEW: GM COACHES -->
+        <div id="view-coaches" class="flex-1 flex flex-col md:flex-row h-full overflow-hidden hidden">
+            <!-- Coaches list -->
+            <div class="w-full md:w-80 bg-slate-800 border-r border-slate-700 flex flex-col h-full">
+                <div class="p-4 border-b border-slate-700 font-bold text-sm flex items-center text-amber-400">
+                    <i class="fa-solid fa-graduation-cap mr-2"></i>Grandmaster Coaches
+                </div>
+                <div id="coaches-list" class="flex-1 overflow-y-auto p-3 space-y-3">
+                    <!-- Coaches injected via JS -->
+                </div>
+            </div>
+
+            <!-- Coach Chat & Session Area -->
+            <div class="flex-1 flex flex-col bg-slate-900/50">
+                <div id="coach-header" class="p-4 bg-slate-800 border-b border-slate-700 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div id="active-coach-avatar" class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 font-bold flex items-center justify-center text-lg border border-amber-500/30">GM</div>
+                        <div>
+                            <div id="active-coach-name" class="font-bold text-sm">Select a Coach</div>
+                            <div id="active-coach-title" class="text-xs text-slate-400">Real-life Grandmaster Mentor</div>
+                        </div>
+                    </div>
+                    <button onclick="openHireCoachModal()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-4 py-2 rounded-xl text-xs font-bold transition shadow">
+                        <i class="fa-solid fa-coins mr-1"></i>Hire / Book Lesson
+                    </button>
+                </div>
+
+                <div id="coach-chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4 font-normal text-sm">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0">GM</div>
+                        <div class="bg-slate-800 border border-slate-700 p-3 rounded-2xl max-w-md text-slate-200">
+                            Welcome! Select a Grandmaster from the left to ask opening questions, analyze your games, or book coaching sessions.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-800 border-t border-slate-700 flex space-x-2">
+                    <input type="text" id="coach-input" placeholder="Ask your coach anything about chess..." onkeydown="if(event.key==='Enter')sendCoachMessage()" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-amber-500 text-slate-100">
+                    <button onclick="sendCoachMessage()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 px-5 rounded-xl font-semibold transition"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW: THEMES & SETTINGS -->
+        <div id="view-settings" class="flex-1 p-6 overflow-y-auto max-w-4xl mx-auto w-full hidden">
+            <h1 class="text-2xl font-bold mb-6 flex items-center"><i class="fa-solid fa-palette text-amber-400 mr-3"></i>Board & Piece Customization</h1>
+            
+            <div class="space-y-6">
+                <div class="bg-slate-800 border border-slate-700 p-5 rounded-2xl shadow">
+                    <h3 class="font-semibold text-sm mb-3 text-amber-400">Board Themes</h3>
+                    <div id="board-themes-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <!-- Theme options injected via JS -->
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 border border-slate-700 p-5 rounded-2xl shadow">
+                    <h3 class="font-semibold text-sm mb-3 text-amber-400">Piece Styles</h3>
+                    <div id="piece-themes-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <!-- Piece style options injected via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL: ADD PROFILE -->
+    <div id="modal-add-profile" class="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 class="font-bold text-lg mb-4">Add New Profile</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Profile Name</label>
+                    <input type="text" id="new-profile-name" placeholder="e.g. BlitzMaster" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Avatar Emoji</label>
+                    <select id="new-profile-emoji" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-amber-500">
+                        <option value="🦁">🦁 Lion</option>
+                        <option value="🚀">🚀 Rocket</option>
+                        <option value="👑">👑 Crown</option>
+                        <option value="🦊">🦊 Fox</option>
+                        <option value="⚡">⚡ Lightning</option>
+                        <option value="🧙‍♂️">🧙‍♂️ Wizard</option>
+                    </select>
+                </div>
+                <div class="flex space-x-2 pt-2">
+                    <button onclick="closeAddProfileModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2.5 rounded-xl text-xs font-semibold transition">Cancel</button>
+                    <button onclick="createProfile()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 py-2.5 rounded-xl text-xs font-bold transition">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: COACH BOOKING / PAYMENT SIMULATOR -->
+    <div id="modal-hire-coach" class="fixed inset-0 bg-slate-950/80 flex items-center justify-center z-50 hidden p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modal-coach-title" class="font-bold text-lg text-amber-400">Book Coaching Session</h3>
+                <button onclick="closeHireCoachModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p id="modal-coach-desc" class="text-xs text-slate-300 mb-4">Get 1-on-1 sparring analysis, opening prep, and endgame mastery directly from this Grandmaster.</p>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-5 space-y-2">
+                <div class="flex justify-between text-xs"><span class="text-slate-400">Session Type:</span><span class="font-bold text-white">1 Hour Live Analysis</span></div>
+                <div class="flex justify-between text-xs"><span class="text-slate-400">Coach Fee:</span><span class="font-bold text-amber-400">$49.00 / session</span></div>
+            </div>
+            <button onclick="confirmHireCoach()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 py-3 rounded-xl font-bold text-sm shadow transition flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-credit-card"></i>
+                <span>Pay & Book Session</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        let state = {
+            gmail: null,
+            profiles: [],
+            activeProfileId: null,
+            gameMode: 'bot', // 'bot' or 'local'
+            playerColor: 'white',
+            selectedBot: null,
+            activeCoach: null,
+            puzzlesSolved: 0,
+            boardTheme: 'wood',
+            pieceTheme: 'standard'
+        };
+
+        // Data for Bots (Chess.com style levels)
+        const bots = [
+            { id: 'martin', name: 'Martin', rating: 250, desc: 'Friendly beginner who loves hanging pieces.', emoji: '🤖', elo: 250 },
+            { id: 'nelson', name: 'Nelson', rating: 1300, desc: 'Loves queen checks and tactical surprises.', emoji: '🦁', elo: 1300 },
+            { id: 'antonio', name: 'Antonio', rating: 1500, desc: 'Solid positional player from Italy.', emoji: '🍕', elo: 1500 },
+            { id: 'stockfish_lite', name: 'Stockfish Lite', rating: 2000, desc: 'Brutal calculation engine.', emoji: '⚙️', elo: 2000 },
+        ];
+
+        // Data for Grandmaster Coaches
+        const coaches = [
+            { id: 'magnus', name: 'GM Magnus C.', title: 'World Chess Champion', desc: 'Expert in endgame technique and universal play style.', emoji: '👑', rating: 2882 },
+            { id: 'hikaru', name: 'GM Hikaru N.', title: 'Blitz & Rapid Legend', desc: 'Specialist in tactical wizardry, opening traps, and speed chess.', emoji: '🔥', rating: 2800 },
+            { id: 'judit', name: 'GM Judit Polgár', title: 'Strongest Female Player', desc: 'Fierce attacking chess and sacrificial combinations.', emoji: '⚡', rating: 2735 },
+            { id: 'botez', name: 'WFM Alexandra B.', title: 'Chess Streamer & Coach', desc: 'Clear strategic guidance and friendly learning environment.', emoji: '🎙️', rating: 2050 }
+        ];
+
+        // Board Theme presets
+        const boardThemes = [
+            { id: 'wood', name: 'Classic Wood', light: '#f0d9b5', dark: '#b58863' },
+            { id: 'green', name: 'Tournament Green', light: '#eeeed2', dark: '#769656' },
+            { id: 'blue', name: 'Ocean Blue', light: '#dee3e6', dark: '#8ca2ad' },
+            { id: 'midnight', name: 'Midnight Obsidian', light: '#334155', dark: '#1e293b' }
+        ];
+
+        // Piece symbol maps
+        const pieceSymbols = {
+            standard: { w: {p:'♙', r:'♖', n:'♘', b:'♗', q: '♕', k: '♔'}, b: {p:'♟', r:'♜', n:'♞', b:'♝', q: '♛', k: '♚'} },
+            minimal: { w: {p:'P', r:'R', n:'N', b:'B', q: 'Q', k: 'K'}, b: {p:'p', r:'r', n:'n', b:'b', q: 'q', k: 'k'} }
+        };
+
+        let chess = new Chess();
+        let selectedSquare = null;
+        let possibleMoves = [];
+        let puzzleGame = null;
+        let currentPuzzleIndex = 0;
+
+        const puzzlesList = [
+            { fen: 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3', solution: ['f3e5', 'c6e5', 'd2d4'], title: 'Center Fork Trick', desc: 'Punish premature development with a tactical strike.' },
+            { fen: 'r1bqkb1r/pppp1ppp/2n5/4p1n1/2B1P3/8/PPPP1PPP/RNBQ1RK1 w kq - 2 6', solution: ['c4f7', 'e8f7', 'd1h5'], title: 'Weak F7 Square', desc: 'Exploit the vulnerable f7 pawn near the enemy king.' }
+        ];
+
+        window.onload = function() {
+            loadLocalStorage();
+            renderThemes();
+            renderBots();
+            renderCoaches();
+            
+            if (!state.gmail) {
+                showView('auth');
+            } else if (!state.activeProfileId) {
+                showView('profiles');
+                renderProfiles();
+            } else {
+                showView('play');
+                initGame();
+            }
+        };
+
+        function loadLocalStorage() {
+            const saved = localStorage.getItem('grandchess_state');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state = { ...state, ...parsed };
+                } catch(e) {}
+            }
+        }
+
+        function saveLocalStorage() {
+            localStorage.setItem('grandchess_state', JSON.stringify(state));
+        }
+
+        function switchTab(tabId) {
+            ['play', 'puzzles', 'coaches', 'settings'].forEach(t => {
+                document.getElementById(`view-${t}`).classList.add('hidden');
+                const navBtn = document.getElementById(`nav-${t}`);
+                if (navBtn) {
+                    navBtn.className = "nav-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-300 transition hover:bg-slate-700 hover:text-white";
+                }
+            });
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.className = "nav-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-white transition hover:bg-slate-600";
+            }
+
+            if (tabId === 'puzzles' && !puzzleGame) {
+                initPuzzle();
+            }
+        }
+
+        function simulateGmailLogin() {
+            const emailNames = ['alex.chess99@gmail.com', 'grandmaster.wannabe@gmail.com', 'blitzkrieg.kid@gmail.com'];
+            state.gmail = emailNames[Math.floor(Math.random() * emailNames.length)];
+            
+            if (!state.profiles || state.profiles.length === 0) {
+                state.profiles = [
+                    { id: 'p1', name: 'Main Player', emoji: '👑', rating: 1200 },
+                    { id: 'p2', name: 'Speed Demon', emoji: '⚡', rating: 1050 }
+                ];
+            }
+            state.activeProfileId = state.profiles[0].id;
+            saveLocalStorage();
+            
+            document.getElementById('view-auth').classList.add('hidden');
+            showView('profiles');
+            renderProfiles();
+        }
+
+        function logoutAccount() {
+            state.gmail = null;
+            state.activeProfileId = null;
+            saveLocalStorage();
+            showView('auth');
+        }
+
+        function showView(viewId) {
+            ['auth', 'profiles', 'play', 'puzzles', 'coaches', 'settings'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (v === viewId) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            });
+
+            if (viewId === 'play' || viewId === 'puzzles' || viewId === 'coaches') {
+                updateProfileBadge();
+            }
+        }
+
+        function renderProfiles() {
+            document.getElementById('current-gmail-display').innerText = state.gmail;
+            const container = document.getElementById('profiles-grid');
+            container.innerHTML = '';
+            
+            state.profiles.forEach(p => {
+                const card = document.createElement('div');
+                card.className = "group cursor-pointer flex flex-col items-center p-4 rounded-2xl hover:bg-slate-800/80 transition w-32";
+                card.onclick = () => selectProfile(p.id);
+                card.innerHTML = `
+                    <div class="w-20 h-20 rounded-2xl bg-slate-800 border-2 border-slate-700 group-hover:border-amber-500 flex items-center justify-center text-3xl shadow-lg transition mb-2">${p.emoji}</div>
+                    <div class="font-semibold text-sm text-slate-200 group-hover:text-white truncate w-full text-center">${p.name}</div>
+                    <div class="text-[10px] text-slate-400">Rating: ${p.rating}</div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectProfile(profileId) {
+            state.activeProfileId = profileId;
+            saveLocalStorage();
+            document.getElementById('view-profiles').classList.add('hidden');
+            switchTab('play');
+            initGame();
+        }
+
+        function openProfileSelector() {
+            showView('profiles');
+            renderProfiles();
+        }
+
+        function openAddProfileModal() {
+            document.getElementById('modal-add-profile').classList.remove('hidden');
+        }
+
+        function closeAddProfileModal() {
+            document.getElementById('modal-add-profile').classList.add('hidden');
+        }
+
+        function createProfile() {
+            const name = document.getElementById('new-profile-name').value.trim() || 'New Player';
+            const emoji = document.getElementById('new-profile-emoji').value;
+            const newId = 'p_' + Date.now();
+            state.profiles.push({ id: newId, name, emoji, rating: 1000 });
+            saveLocalStorage();
+            closeAddProfileModal();
+            renderProfiles();
+        }
+
+        function updateProfileBadge() {
+            const profile = state.profiles.find(p => p.id === state.activeProfileId) || state.profiles[0];
+            if (profile) {
+                document.getElementById('badge-avatar').innerText = profile.emoji;
+                document.getElementById('badge-profilename').innerText = profile.name;
+                document.getElementById('badge-email').innerText = state.gmail || 'Signed In';
+            }
+        }
+
+        function renderBots() {
+            const list = document.getElementById('bots-list');
+            list.innerHTML = '';
+            bots.forEach(b => {
+                const isSelected = state.selectedBot === b.id || (!state.selectedBot && b.id === 'martin');
+                if (!state.selectedBot && b.id === 'martin') state.selectedBot = 'martin';
+
+                const btn = document.createElement('div');
+                btn.className = `p-3 rounded-xl border cursor-pointer flex items-center justify-between transition ${isSelected ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 bg-slate-900/40 hover:border-slate-600'}`;
+                btn.onclick = () => { state.selectedBot = b.id; renderBots(); };
+                btn.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="text-2xl">${b.emoji}</div>
+                        <div>
+                            <div class="font-semibold text-xs text-white">${b.name} <span class="text-amber-400">(${b.rating})</span></div>
+                            <div class="text-[10px] text-slate-400">${b.desc}</div>
+                        </div>
+                    </div>
+                    <div class="w-4 h-4 rounded-full border ${isSelected ? 'border-amber-500 bg-amber-500' : 'border-slate-600'} flex items-center justify-center">
+                        ${isSelected ? '<div class="w-1.5 h-1.5 bg-slate-950 rounded-full"></div>' : ''}
+                    </div>
+                `;
+                list.appendChild(btn);
+            });
+        }
+
+        function setGameMode(mode) {
+            state.gameMode = mode;
+            document.getElementById('mode-bot').className = mode === 'bot' ? "p-3 rounded-xl border border-amber-500 bg-amber-500/10 text-amber-400 font-semibold text-sm flex flex-col items-center justify-center transition" : "p-3 rounded-xl border border-slate-700 bg-slate-900/50 text-slate-300 font-semibold text-sm flex flex-col items-center justify-center transition hover:border-slate-600";
+            document.getElementById('mode-local').className = mode === 'local' ? "p-3 rounded-xl border border-amber-500 bg-amber-500/10 text-amber-400 font-semibold text-sm flex flex-col items-center justify-center transition" : "p-3 rounded-xl border border-slate-700 bg-slate-900/50 text-slate-300 font-semibold text-sm flex flex-col items-center justify-center transition hover:border-slate-600";
+            
+            document.getElementById('bot-selection-container').style.display = mode === 'bot' ? 'block' : 'none';
+        }
+
+        function setPlayerColor(color) {
+            state.playerColor = color;
+            ['white', 'random', 'black'].forEach(c => {
+                const btn = document.getElementById(`color-${c}`);
+                if (c === color) {
+                    btn.className = "py-2 rounded-lg bg-slate-700 text-white font-medium text-xs border border-amber-500 transition";
+                } else {
+                    btn.className = "py-2 rounded-lg bg-slate-900 text-slate-400 font-medium text-xs border border-slate-700 transition";
+                }
+            });
+        }
+
+        function switchPlayTab(tab) {
+            if (tab === 'setup') {
+                document.getElementById('pane-setup').classList.remove('hidden');
+                document.getElementById('pane-moves').classList.add('hidden');
+                document.getElementById('playtab-setup').className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-slate-700 text-white transition";
+                document.getElementById('playtab-moves').className = "flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
+            } else {
+                document.getElementById('pane-setup').classList.add('hidden');
+                document.getElementById('pane-moves').classList.remove('hidden');
+                document.getElementById('playtab-moves').className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-slate-700 text-white transition";
+                document.getElementById('playtab-setup').className = "flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
+            }
+        }
+
+        function initGame() {
+            chess = new Chess();
+            if (state.gameMode === 'bot' && state.playerColor === 'random') {
+                state.actualPlayerColor = Math.random() < 0.5 ? 'white' : 'black';
+            } else {
+                state.actualPlayerColor = state.playerColor;
+            }
+
+            const activeProfile = state.profiles.find(p => p.id === state.activeProfileId) || { name: 'Player', rating: 1200, emoji: '👑' };
+            const botObj = bots.find(b => b.id === state.selectedBot) || bots[0];
+
+            if (state.gameMode === 'bot') {
+                if (state.actualPlayerColor === 'white') {
+                    document.getElementById('player-name').innerText = activeProfile.name;
+                    document.getElementById('player-avatar').innerText = activeProfile.emoji;
+                    document.getElementById('player-rating').innerText = `Rating: ${activeProfile.rating}`;
+                    document.getElementById('opponent-name').innerText = botObj.name;
+                    document.getElementById('opponent-avatar').innerText = botObj.emoji;
+                    document.getElementById('opponent-rating').innerText = `Rating: ${botObj.rating}`;
+                } else {
+                    document.getElementById('opponent-name').innerText = activeProfile.name;
+                    document.getElementById('opponent-avatar').innerText = activeProfile.emoji;
+                    document.getElementById('opponent-rating').innerText = `Rating: ${activeProfile.rating}`;
+                    document.getElementById('player-name').innerText = botObj.name;
+                    document.getElementById('player-avatar').innerText = botObj.emoji;
+                    document.getElementById('player-rating').innerText = `Rating: ${botObj.rating}`;
+                }
+            } else {
+                document.getElementById('player-name').innerText = 'White Player';
+                document.getElementById('player-avatar').innerText = '♔';
+                document.getElementById('player-rating').innerText = 'Pass & Play';
+                document.getElementById('opponent-name').innerText = 'Black Player';
+                document.getElementById('opponent-avatar').innerText = '♚';
+                document.getElementById('opponent-rating').innerText = 'Pass & Play';
+            }
+
+            selectedSquare = null;
+            possibleMoves = [];
+            renderBoard();
+            renderMoveHistory();
+
+            if (state.gameMode === 'bot' && state.actualPlayerColor === 'black') {
+                setTimeout(makeBotMove, 400);
+            }
+        }
+
+        function startNewGame() {
+            initGame();
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('chessboard');
+            boardEl.innerHTML = '';
+            
+            const theme = boardThemes.find(t => t.id === state.boardTheme) || boardThemes[0];
+            const piecesMap = pieceSymbols[state.pieceTheme] || pieceSymbols.standard;
+            const boardData = chess.board();
+
+            const isFlipped = state.gameMode === 'bot' && state.actualPlayerColor === 'black';
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const actualR = isFlipped ? 7 - r : r;
+                    const actualC = isFlipped ? 7 - c : c;
+                    const squareCode = String.fromCharCode(97 + actualC) + (8 - actualR);
+
+                    const square = document.createElement('div');
+                    const isDark = (actualR + actualC) % 2 === 1;
+                    square.className = `square ${isDark ? 'dark' : 'light'}`;
+                    square.style.backgroundColor = isDark ? theme.dark : theme.light;
+                    square.dataset.square = squareCode;
+
+                    if (selectedSquare === squareCode) {
+                        square.classList.add('highlight-selected');
+                    }
+
+                    if (possibleMoves.includes(squareCode)) {
+                        const targetPiece = chess.get(squareCode);
+                        if (targetPiece) {
+                            square.classList.add('highlight-capture');
+                        } else {
+                            square.classList.add('highlight-move');
+                        }
+                    }
+
+                    const piece = boardData[actualR][actualC];
+                    if (piece) {
+                        const pieceSpan = document.createElement('span');
+                        pieceSpan.className = 'piece font-bold';
+                        pieceSpan.style.color = piece.color === 'w' ? '#f8fafc' : '#0f172a';
+                        pieceSpan.innerText = piecesMap[piece.color][piece.type];
+                        square.appendChild(pieceSpan);
+                    }
+
+                    square.onclick = () => handleSquareClick(squareCode);
+                    boardEl.appendChild(square);
+                }
+            }
+        }
+
+        function handleSquareClick(square) {
+            if (chess.game_over()) return;
+
+            if (state.gameMode === 'bot') {
+                const turnColor = chess.turn() === 'w' ? 'white' : 'black';
+                if (turnColor !== state.actualPlayerColor) return;
+            }
+
+            if (selectedSquare === null) {
+                const piece = chess.get(square);
+                if (piece && piece.color === chess.turn()) {
+                    selectedSquare = square;
+                    possibleMoves = chess.moves({ square: square, verbose: true }).map(m => m.to);
+                    renderBoard();
+                }
+            } else {
+                if (possibleMoves.includes(square)) {
+                    const move = chess.move({ from: selectedSquare, to: square, promotion: 'q' });
+                    if (move) {
+                        selectedSquare = null;
+                        possibleMoves = [];
+                        renderBoard();
+                        renderMoveHistory();
+                        updateGameStatus();
+
+                        if (!chess.game_over() && state.gameMode === 'bot') {
+                            setTimeout(makeBotMove, 300);
+                        }
+                    }
+                } else {
+                    const piece = chess.get(square);
+                    if (piece && piece.color === chess.turn()) {
+                        selectedSquare = square;
+                        possibleMoves = chess.moves({ square: square, verbose: true }).map(m => m.to);
+                        renderBoard();
+                    } else {
+                        selectedSquare = null;
+                        possibleMoves = [];
+                        renderBoard();
+                    }
+                }
+            }
+        }
+
+        function makeBotMove() {
+            if (chess.game_over()) return;
+            const moves = chess.moves({ verbose: true });
+            if (moves.length === 0) return;
+
+            // Simple intelligent bot selection depending on bot rating
+            const botObj = bots.find(b => b.id === state.selectedBot) || bots[0];
+            let selectedMove;
+
+            if (botObj.elo <= 300) {
+                // Random moves for beginner bot
+                selectedMove = moves[Math.floor(Math.random() * moves.length)];
+            } else {
+                // Check for captures or checks first for higher bots
+                const captures = moves.filter(m => m.captured);
+                if (captures.length > 0 && Math.random() < 0.7) {
+                    selectedMove = captures[Math.floor(Math.random() * captures.length)];
+                } else {
+                    selectedMove = moves[Math.floor(Math.random() * moves.length)];
+                }
+            }
+
+            chess.move(selectedMove);
+            renderBoard();
+            renderMoveHistory();
+            updateGameStatus();
+        }
+
+        function undoMove() {
+            chess.undo();
+            if (state.gameMode === 'bot') {
+                chess.undo(); // Undo bot move too
+            }
+            selectedSquare = null;
+            possibleMoves = [];
+            renderBoard();
+            renderMoveHistory();
+            updateGameStatus();
+        }
+
+        function resignGame() {
+            alert('Game resigned.');
+            initGame();
+        }
+
+        function updateGameStatus() {
+            const evalBar = document.getElementById('game-eval');
+            if (chess.in_checkmate()) {
+                evalBar.innerText = "Checkmate!";
+            } else if (chess.in_draw()) {
+                evalBar.innerText = "Draw!";
+            } else if (chess.in_check()) {
+                evalBar.innerText = "Check!";
+            } else {
+                evalBar.innerText = "Equal (+0.0)";
+            }
+        }
+
+        function renderMoveHistory() {
+            const list = document.getElementById('moves-list');
+            list.innerHTML = '';
+            const history = chess.history({ verbose: true });
+            for (let i = 0; i < history.length; i += 2) {
+                const row = document.createElement('div');
+                const whiteMove = history[i] ? history[i].san : '';
+                const blackMove = history[i+1] ? history[i+1].san : '';
+                row.className = "flex justify-between py-0.5 border-b border-slate-800 text-slate-300";
+                row.innerHTML = `<span class="w-8 text-slate-500">${(i/2)+1}.</span><span class="flex-1">${whiteMove}</span><span class="flex-1">${blackMove}</span>`;
+                list.appendChild(row);
+            }
+            list.scrollTop = list.scrollHeight;
+        }
+
+        function initPuzzle() {
+            currentPuzzleIndex = 0;
+            loadPuzzle(currentPuzzleIndex);
+        }
+
+        function loadPuzzle(index) {
+            const p = puzzlesList[index % puzzlesList.length];
+            puzzleGame = new Chess(p.fen);
+            document.getElementById('puzzle-title').innerText = p.title;
+            document.getElementById('puzzle-desc').innerText = p.desc;
+            renderPuzzleBoard();
+        }
+
+        function renderPuzzleBoard() {
+            const boardEl = document.getElementById('puzzle-board');
+            boardEl.innerHTML = '';
+            const theme = boardThemes.find(t => t.id === state.boardTheme) || boardThemes[0];
+            const piecesMap = pieceSymbols[state.pieceTheme] || pieceSymbols.standard;
+            const boardData = puzzleGame.board();
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const squareCode = String.fromCharCode(97 + c) + (8 - r);
+                    const square = document.createElement('div');
+                    const isDark = (r + c) % 2 === 1;
+                    square.className = `square ${isDark ? 'dark' : 'light'}`;
+                    square.style.backgroundColor = isDark ? theme.dark : theme.light;
+                    
+                    const piece = boardData[r][c];
+                    if (piece) {
+                        const pieceSpan = document.createElement('span');
+                        pieceSpan.className = 'piece font-bold';
+                        pieceSpan.style.color = piece.color === 'w' ? '#f8fafc' : '#0f172a';
+                        pieceSpan.innerText = piecesMap[piece.color][piece.type];
+                        square.appendChild(pieceSpan);
+                    }
+                    boardEl.appendChild(square);
+                }
+            }
+        }
+
+        function nextPuzzle() {
+            currentPuzzleIndex++;
+            loadPuzzle(currentPuzzleIndex);
+            document.getElementById('puzzle-status').innerText = "Your Turn (White)";
+        }
+
+        function hintPuzzle() {
+            const p = puzzlesList[currentPuzzleIndex % puzzlesList.length];
+            alert(`Hint: Try starting with move ${p.solution[0]}`);
+        }
+
+        function renderCoaches() {
+            const list = document.getElementById('coaches-list');
+            list.innerHTML = '';
+            coaches.forEach(c => {
+                const isSelected = state.activeCoach === c.id;
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border cursor-pointer flex items-center space-x-3 transition ${isSelected ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 bg-slate-900/40 hover:border-slate-600'}`;
+                card.onclick = () => { selectCoach(c.id); };
+                card.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xl shrink-0">${c.emoji}</div>
+                    <div class="overflow-hidden">
+                        <div class="font-semibold text-xs text-white truncate">${c.name}</div>
+                        <div class="text-[10px] text-amber-400 font-medium">${c.title}</div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        function selectCoach(coachId) {
+            state.activeCoach = coachId;
+            const coach = coaches.find(c => c.id === coachId);
+            if (coach) {
+                document.getElementById('active-coach-avatar').innerText = coach.emoji;
+                document.getElementById('active-coach-name').innerText = coach.name;
+                document.getElementById('active-coach-title').innerText = coach.title;
+            }
+            renderCoaches();
+        }
+
+        function sendCoachMessage() {
+            const input = document.getElementById('coach-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const chatContainer = document.getElementById('coach-chat-messages');
+            
+            // Append User message
+            const userMsg = document.createElement('div');
+            userMsg.className = "flex items-start space-x-3 justify-end";
+            userMsg.innerHTML = `
+                <div class="bg-amber-500 text-slate-950 p-3 rounded-2xl max-w-md font-medium">${text}</div>
+                <div class="w-8 h-8 rounded-full bg-amber-600 flex items-center justify-center text-xs font-bold shrink-0">You</div>
+            `;
+            chatContainer.appendChild(userMsg);
+            input.value = '';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Simulated GM coach response
+            setTimeout(() => {
+                const coach = coaches.find(c => c.id === state.activeCoach) || coaches[0];
+                const replies = [
+                    "That is an interesting variation! Make sure you always evaluate king safety before launching flank attacks.",
+                    "In that position, piece activity is far more important than a single pawn. Look for central breaks.",
+                    "Good tactical awareness! Practice visualization daily and you will gain 200 rating points quickly.",
+                    "I recommend studying rook endings in that exact structure. Very instructive!"
+                ];
+                const replyText = replies[Math.floor(Math.random() * replies.length)];
+
+                const coachMsg = document.createElement('div');
+                coachMsg.className = "flex items-start space-x-3";
+                coachMsg.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold shrink-0">${coach.emoji}</div>
+                    <div class="bg-slate-800 border border-slate-700 p-3 rounded-2xl max-w-md text-slate-200">${replyText}</div>
+                `;
+                chatContainer.appendChild(coachMsg);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }, 800);
+        }
+
+        function openHireCoachModal() {
+            const coach = coaches.find(c => c.id === state.activeCoach) || coaches[0];
+            document.getElementById('modal-coach-title').innerText = `Book Session with ${coach.name}`;
+            document.getElementById('modal-hire-coach').classList.remove('hidden');
+        }
+
+        function closeHireCoachModal() {
+            document.getElementById('modal-hire-coach').classList.add('hidden');
+        }
+
+        function confirmHireCoach() {
+            alert('Payment simulated successfully! Your private coaching session has been booked.');
+            closeHireCoachModal();
+        }
+
+        function renderThemes() {
+            const boardGrid = document.getElementById('board-themes-grid');
+            boardGrid.innerHTML = '';
+            boardThemes.forEach(t => {
+                const card = document.createElement('div');
+                const isSelected = state.boardTheme === t.id;
+                card.className = `p-3 rounded-xl border cursor-pointer flex flex-col items-center transition ${isSelected ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`;
+                card.onclick = () => { state.boardTheme = t.id; saveLocalStorage(); renderThemes(); renderBoard(); };
+                card.innerHTML = `
+                    <div class="w-16 h-16 rounded-lg grid grid-cols-2 overflow-hidden mb-2 shadow border border-slate-700">
+                        <div style="background-color: ${t.light}"></div>
+                        <div style="background-color: ${t.dark}"></div>
+                        <div style="background-color: ${t.dark}"></div>
+                        <div style="background-color: ${t.light}"></div>
+                    </div>
+                    <span class="font-semibold text-xs text-white">${t.name}</span>
+                `;
+                boardGrid.appendChild(card);
+            });
+
+            const pieceGrid = document.getElementById('piece-themes-grid');
+            pieceGrid.innerHTML = '';
+            ['standard', 'minimal'].forEach(pStyle => {
+                const isSelected = state.pieceTheme === pStyle;
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border cursor-pointer flex items-center justify-between transition ${isSelected ? 'border-amber-500 bg-amber-500/10' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`;
+                card.onclick = () => { state.pieceTheme = pStyle; saveLocalStorage(); renderThemes(); renderBoard(); };
+                card.innerHTML = `
+                    <span class="font-semibold text-xs capitalize text-white">${pStyle} Pieces</span>
+                    <span class="text-xl font-bold">${pStyle === 'standard' ? '♘ ♕' : 'N Q'}</span>
+                `;
+                pieceGrid.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
